@@ -37,11 +37,13 @@ var app = {
 
   send: function(message) {
     app.startSpinner();
+    console.log('in send, ', message);
 
     // POST the message to the server
     $.ajax({
       url: app.server,
       type: 'POST',
+      contentType: 'application/json',
       data: JSON.stringify(message),
       success: function (data) {
         // Clear messages input
