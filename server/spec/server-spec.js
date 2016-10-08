@@ -76,16 +76,39 @@ describe('Persistent Node Chat Server', function() {
     });
   });
 
+  it('Should not insert malformed messages to the DB', function(done) {
+    // Post a message to the node chat server:
+    request({
+      method: 'POST',
+      uri: 'http://127.0.0.1:3000/classes/messages',
+      json: '{{{{not real json',
+    }, function () {
+      // Now if we look in the database, we should find the
+      // posted message there.
+
+      // TODO: You might have to change this test to get all the data from
+      // your message table, since this is schema-dependent.
+      var queryString = 'SELECT * FROM messages';
+      var queryArgs = [];
+
+      dbConnection.query(queryString, queryArgs, function(err, results) {
+        // Should have one result:
+        expect(results.length).to.equal(0);
+
+        // TODO: If you don't have a column named text, change this test.
+        // expect(results[0].text).to.equal('In mercy\'s name, three days is all I need.');
+
+        done();
+      });
+    });
+  });
+
   it('Should output all messages from the DB', function(done) {
     // Let's insert a message into the db
     var roomQueryString = 'INSERT INTO rooms (roomname) VALUES ("main");';
     var userQueryString = 'INSERT INTO users (username) VALUES ("Valjean");';
     var messageQueryString = 'INSERT INTO messages (room_id, user_id, text) VALUES (1, 1, "Men like you can never change!")';
     var queryArgs = [];
-    // TODO - The exact query string and query args to use
-    // here depend on the schema you design, so I'll leave
-    // them up to you. */
-
 
     dbConnection.query(roomQueryString, queryArgs, function(err) {
       if (err) { throw err; }
@@ -104,4 +127,75 @@ describe('Persistent Node Chat Server', function() {
       });
     });
   });
+
+  it('Should output all messages in DESC order', function(done) {
+    // Let's insert a message into the db
+    var roomQueryString = 'INSERT INTO rooms (roomname) VALUES ("main");';
+    var userQueryString = 'INSERT INTO users (username) VALUES ("Valjean");';
+    var message1QueryString = 'INSERT INTO messages (room_id, user_id, text) VALUES (1, 1, "Men like you can never change!")';
+    var message2QueryString = 'INSERT INTO messages (room_id, user_id, text) VALUES (1, 1, "Message 2")';
+    var queryArgs = [];
+
+    dbConnection.query(roomQueryString, queryArgs, function(err) {
+      if (err) { throw err; }
+      dbConnection.query(userQueryString, queryArgs, function(err) {
+        if (err) { throw err; }
+        dbConnection.query(message1QueryString, queryArgs, function(err) {
+          if (err) { throw err; }
+          dbConnection.query(message2QueryString, queryArgs, function(err) {
+            // Now query the Node chat server and see if it returns
+            // the message we just inserted:
+            request('http://127.0.0.1:3000/classes/messages', function(error, response, body) {
+              var messageLog = JSON.parse(body);
+              expect(messageLog.length).to.equal(2);
+              expect(messageLog[0].text).to.equal('Message 2');
+              // expect(messageLog[0].roomname).to.equal('main');
+              done();
+            });
+          });
+        });
+      });
+    });
+  });
+
+  it('Posting a message should create a room and user if necessary', function(done) {
+    // Post a message to the node chat server:
+    request({
+      method: 'POST',
+      uri: 'http://127.0.0.1:3000/classes/messages',
+      json: {
+        username: 'Valjean',
+        text: 'In mercy\'s name, three days is all I need.',
+        roomname: 'Hello'
+      },
+    }, function () {
+      // Now if we look in the database, we should find the
+      // posted message there.
+
+      // TODO: You might have to change this test to get all the data from
+      // your message table, since this is schema-dependent.
+      var userQueryString = 'SELECT * FROM users';
+      var roomQueryString = 'SELECT * FROM rooms';
+      var messageQueryString = 'SELECT * FROM messages';
+      var queryArgs = [];
+
+      dbConnection.query(messageQueryString, queryArgs, function(err, results) {
+        // Should have one result:
+        expect(results.length).to.equal(1);
+
+        dbConnection.query(roomQueryString, queryArgs, function(err, results) {
+          // Should have one result:
+          expect(results.length).to.equal(1);
+
+          dbConnection.query(userQueryString, queryArgs, function(err, results) {
+            // Should have one result:
+            expect(results.length).to.equal(1);
+
+            done();
+          });
+        });
+      });
+    });
+  });
+
 });

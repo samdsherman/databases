@@ -4,6 +4,7 @@ var app = {
   //TODO: The current 'handleUsernameClick' function just toggles the class 'friend'
   //to all messages sent by the user
   server: 'http://localhost:3000/classes/messages/',
+  userServer: 'http://localhost:3000/classes/users',
   username: 'anonymous',
   roomname: 'lobby',
   lastMessageId: 0,
@@ -14,30 +15,81 @@ var app = {
     // Get username
     app.username = window.location.search.substr(10);
 
+    app.getUserStyles();
+
     // Cache jQuery selectors
     app.$message = $('#message');
     app.$chats = $('#chats');
     app.$roomSelect = $('#roomSelect');
+    app.$textColorSelect = $('#textColorSelect');
     app.$send = $('#send');
 
     // Add listeners
     app.$chats.on('click', '.username', app.handleUsernameClick);
     app.$send.on('submit', app.handleSubmit);
     app.$roomSelect.on('change', app.handleRoomChange);
+    app.$textColorSelect.on('change', app.handleTextColorChange);
 
     // Fetch previous messages
     app.startSpinner();
     app.fetch(false);
 
     // Poll for new messages
-    setInterval(function() {
-      app.fetch(true);
-    }, 3000);
+    // setInterval(function() {
+      // app.fetch(true);
+    // }, 30000);
+  },
+
+  getUserStyles: function() {
+    // Get user style settings
+    $.ajax({
+      url: app.userServer,
+      type: 'GET',
+      contentType: 'application/json',
+      success: function(data) {
+        var users = JSON.parse(data);
+        var curUser = users.reduce(function (prevUser, user) {
+          if (user.username === app.username) {
+            return user;
+          }
+        }, null);
+
+        console.log(curUser);
+        if (curUser) {
+          app.$textColorSelect.val(curUser.textColor);
+          app.$textColorSelect.trigger('change');
+        }
+      },
+      error: function(error) {
+        console.error('chatterbox: Failed to fetch messages', error);
+      }
+    });
+  },
+
+  handleTextColorChange: function(event) {
+    console.log('updating user textColor on the server');
+    app.$chats.css('color', app.$textColorSelect.val());
+
+    console.log({
+        username: app.username,
+        textColor: app.$textColorSelect.val()
+      });
+
+    $.ajax({
+      url: app.userServer,
+      type: 'PUT',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        username: app.username,
+        textColor: app.$textColorSelect.val()
+      })
+    });
   },
 
   send: function(message) {
     app.startSpinner();
-    console.log('in send, ', message);
+
+    message.textColor = app.$textColorSelect.val();
 
     // POST the message to the server
     $.ajax({
@@ -48,6 +100,8 @@ var app = {
       success: function (data) {
         // Clear messages input
         app.$message.val('');
+
+        // app.getUserStyles();
 
         // Trigger a fetch to update the messages, pass true to animate
         app.fetch();
@@ -69,20 +123,20 @@ var app = {
         data = {
           results: parsedResults
         };
-        console.log('fetch data', data.results);
         // Don't bother if we have nothing to work with
-        if (!data.results || !data.results.length) { return; }
+        if (!data.results || !data.results.length) { 
+          app.stopSpinner();
+          return; 
+        }
 
-        console.log('through the if');
         // Store messages for caching later
         app.messages = data.results;
 
         // Get the last message
-        var mostRecentMessage = data.results[data.results.length - 1];
+        var mostRecentMessage = data.results[0];
 
         // Only bother updating the DOM if we have a new message
         if (mostRecentMessage.id !== app.lastMessageId) {
-          console.log('through the 2nd if');
           // Update the UI with the fetched rooms
           app.renderRoomList(data.results);
 
@@ -107,9 +161,7 @@ var app = {
     // Clear existing messages`
     app.clearMessages();
     app.stopSpinner();
-    console.log('in renderMessages');
     if (Array.isArray(messages)) {
-      console.log('is array! renderMessages');
       // Add all fetched messages that are in our current room
       messages
         .filter(function(message) {
@@ -155,7 +207,6 @@ var app = {
   },
 
   renderMessage: function(message) {
-    console.log('rendering message', message);
     if (!message.roomname) {
       message.roomname = 'lobby';
     }

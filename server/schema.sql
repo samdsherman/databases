@@ -1,10 +1,12 @@
+DROP DATABASE chat;
 CREATE DATABASE chat;
 
 USE chat;
 
 CREATE TABLE users (
   id int primary key auto_increment,
-  username varchar(255)
+  username varchar(255),
+  text_color varchar(255)
 );
 
 CREATE TABLE rooms (

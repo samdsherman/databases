@@ -10,6 +10,8 @@ router.get('/users', controller.users.get);
 
 router.post('/users', controller.users.post);
 
+router.put('/users', controller.users.put);
+
 router.get('/rooms', controller.messages.get);
 
 router.post('/rooms', controller.messages.post);

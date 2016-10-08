@@ -8,7 +8,8 @@ module.exports = {
 
   users: {
     get: function (req, res) { models.users.get(req, res); },
-    post: function (req, res) { models.users.post(req, res); }
+    post: function (req, res) { models.users.post(req, res); },
+    put: function(req, res) { models.users.put(req, res); }
   },
 
   rooms: {
